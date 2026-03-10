@@ -22,8 +22,13 @@ pip install -r requirements.txt
 3. Open `config.py` and update the following constants with your project's values:
 
 ```python
-FIREBASE_API_KEY   = "your-real-api-key"
-FIREBASE_PROJECT_ID = "your-project-id"
+FIREBASE_API_KEY     = "your-real-api-key"
+FIREBASE_PROJECT_ID  = "cybersec-ddd85"
+FIREBASE_PROJECT_NUMBER = "1088924217709"  # (optional)
+
+# Optional: Allow any whitelisted device to decrypt a vault file.
+# This disables the machine-binding property.
+ALLOW_WHITELIST_WIDE_DECRYPTION = True
 ```
 
 ### 3. Firestore Collection & Document Structure
@@ -60,7 +65,9 @@ Prints step-by-step instructions for adding this device to the Firebase whitelis
 ```bash
 python main.py encrypt report.pdf
 ```
-Creates `report.vault` alongside the original file. Only this machine (when cloud-authorized) can decrypt it.
+Creates `report.vault` alongside the original file.
+
+**If `ALLOW_WHITELIST_WIDE_DECRYPTION = True` in `config.py`, this file can be decrypted by any device that is authorized in Firebase** (at the cost of losing the per-machine hardware lock).
 
 ### Encrypt a file for a DIFFERENT machine (programmatic)
 ```python

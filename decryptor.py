@@ -78,7 +78,7 @@ def decrypt_file(vault_path: str, output_dir: str = DEFAULT_OUTPUT_DIR) -> bool:
         print("❌ Invalid vault file — missing magic header (TVAULT01).")
         return False
 
-    # ── Step 3: Derive AES key from fingerprint ───────────────────────────────
+    # ── Step 3: Derive AES key ───────────────────────────────────────────────
     try:
         key = derive_key(fingerprint)
     except Exception as e:
@@ -95,8 +95,26 @@ def decrypt_file(vault_path: str, output_dir: str = DEFAULT_OUTPUT_DIR) -> bool:
         aesgcm = AESGCM(key)
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
     except InvalidTag:
-        print("🚫 Hardware mismatch: This file is not authorized for this device.")
-        return False
+        # If shared-key mode is enabled, still allow legacy per-device vaults to
+        # decrypt by falling back to the fingerprint-derived key.
+        from config import ALLOW_WHITELIST_WIDE_DECRYPTION
+        from encryptor import derive_key_from_fingerprint
+
+        if ALLOW_WHITELIST_WIDE_DECRYPTION:
+            try:
+                fallback_key = derive_key_from_fingerprint(fingerprint)
+                aesgcm = AESGCM(fallback_key)
+                plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+                print("✅ Decrypted using the device-specific key (legacy vault).")
+            except InvalidTag:
+                print("🚫 Hardware mismatch: This file is not authorized for this device.")
+                return False
+            except Exception as e:
+                print(f"❌ Decryption error: {e}")
+                return False
+        else:
+            print("🚫 Hardware mismatch: This file is not authorized for this device.")
+            return False
     except Exception as e:
         print(f"❌ Decryption error: {e}")
         return False

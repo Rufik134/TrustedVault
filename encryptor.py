@@ -25,19 +25,32 @@ KDF_ITERATIONS = 100_000
 KEY_LENGTH = 32                    # 256-bit AES key
 
 
-def derive_key(fingerprint: str) -> bytes:
+from config import ALLOW_WHITELIST_WIDE_DECRYPTION, FIREBASE_PROJECT_ID, FIREBASE_PROJECT_NUMBER
+
+
+def _derive_shared_key() -> bytes:
+    """Derive a shared AES key used by all whitelist devices.
+
+    This mode is intentionally weaker than the default, since it does not bind
+    ciphertext to a specific hardware fingerprint. Use it only when you want
+    every authorized (whitelisted) device to be able to decrypt the same vault
+    files.
     """
-    Derive a 256-bit AES key from the hardware fingerprint using PBKDF2-HMAC-SHA256.
+    shared_secret = f"{FIREBASE_PROJECT_ID}:{FIREBASE_PROJECT_NUMBER}"
 
-    The key is derived deterministically from the fingerprint, so the same
-    machine always produces the same key without storing it anywhere.
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=KEY_LENGTH,
+        salt=KDF_SALT,
+        iterations=KDF_ITERATIONS,
+    )
+    return kdf.derive(shared_secret.encode())
 
-    Args:
-        fingerprint (str): SHA-256 hardware fingerprint string.
 
-    Returns:
-        bytes: 32-byte AES-256 key (exists only in memory).
-    """
+def derive_key_from_fingerprint(fingerprint: str) -> bytes:
+    """Derive the AES key based strictly on the hardware fingerprint.
+
+    This is the original behavior (machine-locking)."""
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=KEY_LENGTH,
@@ -45,6 +58,25 @@ def derive_key(fingerprint: str) -> bytes:
         iterations=KDF_ITERATIONS,
     )
     return kdf.derive(fingerprint.encode())
+
+
+def derive_key(fingerprint: str) -> bytes:
+    """Derive a 256-bit AES key.
+
+    By default, the key is derived from the hardware fingerprint. When
+    ALLOW_WHITELIST_WIDE_DECRYPTION is enabled, a shared project key is used
+    instead, allowing any whitelisted device to decrypt the same file.
+
+    Args:
+        fingerprint (str): SHA-256 hardware fingerprint string.
+
+    Returns:
+        bytes: 32-byte AES-256 key (exists only in memory).
+    """
+    if ALLOW_WHITELIST_WIDE_DECRYPTION:
+        return _derive_shared_key()
+
+    return derive_key_from_fingerprint(fingerprint)
 
 
 def encrypt_file(input_path: str, output_path: str, fingerprint: str) -> None:

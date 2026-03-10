@@ -8,6 +8,14 @@ Replace placeholder values with real Firebase credentials before use.
 # Firebase project credentials
 FIREBASE_API_KEY = "YOUR_API_KEY"
 FIREBASE_PROJECT_ID = "cybersec-ddd85"
+FIREBASE_PROJECT_NUMBER = "1088924217709"
+
+# If True, encryption/decryption uses a shared project key rather than a per-device
+# key derived from the hardware fingerprint. This allows any device that is
+# whitelisted in Firebase to decrypt any .vault file (at the cost of losing the
+# “machine lock” property).
+ALLOW_WHITELIST_WIDE_DECRYPTION = True
+
 FIREBASE_AUTH_DOMAIN = f"{FIREBASE_PROJECT_ID}.firebaseapp.com"
 FIREBASE_STORAGE_BUCKET = f"{FIREBASE_PROJECT_ID}.appspot.com"
 
