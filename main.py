@@ -184,8 +184,36 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def run_direct_vault_open() -> None:
+    """Support direct .vault file invocation without a subcommand.
+
+    Example:
+        python main.py report.vault
+
+    This makes it easier to open a vault file from a wrapper or file
+    association and have TrustedVault automatically decrypt it.
+    """
+    if len(sys.argv) != 2:
+        return
+
+    vault_path = sys.argv[1]
+    if not vault_path.lower().endswith(".vault"):
+        return
+
+    from decryptor import decrypt_file
+
+    if not os.path.isfile(vault_path):
+        print(f"❌ Vault file not found: {vault_path}")
+        sys.exit(1)
+
+    print(f"🔓 Detected direct vault file invocation: {vault_path}")
+    success = decrypt_file(vault_path, open_decrypted_file=True)
+    sys.exit(0 if success else 1)
+
+
 def main() -> None:
     """Parse CLI arguments and dispatch to the appropriate command handler."""
+    run_direct_vault_open()
     parser = build_parser()
     args = parser.parse_args()
     args.func(args)

@@ -10,6 +10,7 @@ automatically decrypting any .vault file dropped into the watched directory.
 """
 
 import os
+import subprocess
 import time
 
 from cryptography.exceptions import InvalidTag
@@ -25,7 +26,7 @@ from identity_module import get_hardware_fingerprint
 DEFAULT_OUTPUT_DIR = "./temp_view"
 
 
-def decrypt_file(vault_path: str, output_dir: str = DEFAULT_OUTPUT_DIR) -> bool:
+def decrypt_file(vault_path: str, output_dir: str = DEFAULT_OUTPUT_DIR, open_decrypted_file: bool = False) -> bool:
     """
     Decrypt a .vault file to a temporary output directory.
 
@@ -40,6 +41,8 @@ def decrypt_file(vault_path: str, output_dir: str = DEFAULT_OUTPUT_DIR) -> bool:
         vault_path (str): Path to the .vault file to decrypt.
         output_dir (str): Directory to write the decrypted file into.
                           Created automatically if it does not exist.
+        open_decrypted_file (bool): If True, attempt to open the decrypted
+            output file after successful decryption.
 
     Returns:
         bool: True on successful decryption, False on any failure.
@@ -139,8 +142,26 @@ def decrypt_file(vault_path: str, output_dir: str = DEFAULT_OUTPUT_DIR) -> bool:
         return False
 
     # ── Step 6: Report success ────────────────────────────────────────────────
-    print(f"✅ File decrypted into secure temp folder: {os.path.abspath(out_path)}")
+    absolute_out_path = os.path.abspath(out_path)
+    print(f"✅ File decrypted into secure temp folder: {absolute_out_path}")
+
+    if open_decrypted_file:
+        _open_file(absolute_out_path)
+
     return True
+
+
+def _open_file(path: str) -> None:
+    """Open a file with the system default application."""
+    try:
+        if os.name == "nt":
+            os.startfile(path)
+        elif os.uname().sysname == "Darwin":
+            subprocess.Popen(["open", path])
+        else:
+            subprocess.Popen(["xdg-open", path])
+    except Exception as e:
+        print(f"⚠️ Failed to open decrypted file automatically: {e}")
 
 
 def watch_folder(watch_dir: str) -> None:

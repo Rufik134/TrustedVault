@@ -85,6 +85,12 @@ Decryption requires:
 
 Decrypted output is written to `./temp_view/`.
 
+You can also pass a vault file directly without the `decrypt` subcommand:
+```bash
+python main.py report.vault
+```
+This is useful for wrapper scripts or file associations that open `.vault` files automatically.
+
 ### Start the Invisible Decryptor service
 ```bash
 python main.py watch ./incoming
