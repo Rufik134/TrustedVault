@@ -19,7 +19,7 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 from cloud_auth import check_authorization
-from encryptor import HEADER_SIZE, MAGIC_BYTES, NONCE_SIZE, derive_key
+from encryptor import HEADER_SIZE, MAGIC_BYTES, NONCE_SIZE, SALT_SIZE, derive_key
 from identity_module import get_hardware_fingerprint
 
 # Where decrypted files are temporarily written
@@ -81,16 +81,25 @@ def decrypt_file(vault_path: str, output_dir: str = DEFAULT_OUTPUT_DIR, open_dec
         print("❌ Invalid vault file — missing magic header (TVAULT01).")
         return False
 
+    has_salt = len(vault_data) >= HEADER_SIZE + SALT_SIZE + NONCE_SIZE
+    if has_salt:
+        salt_start = HEADER_SIZE
+        salt_end = salt_start + SALT_SIZE
+        salt = vault_data[salt_start:salt_end]
+        nonce_start = salt_end
+    else:
+        salt = None
+        nonce_start = HEADER_SIZE
+
     # ── Step 3: Derive AES key ───────────────────────────────────────────────
     try:
-        key = derive_key(fingerprint)
+        key = derive_key(fingerprint, salt)
     except Exception as e:
         print(f"❌ Key derivation failed: {e}")
         return False
 
     # ── Step 4: Attempt AES-GCM decryption ───────────────────────────────────
-    nonce_start = HEADER_SIZE
-    nonce_end = HEADER_SIZE + NONCE_SIZE
+    nonce_end = nonce_start + NONCE_SIZE
     nonce = vault_data[nonce_start:nonce_end]
     ciphertext = vault_data[nonce_end:]
 
@@ -105,7 +114,7 @@ def decrypt_file(vault_path: str, output_dir: str = DEFAULT_OUTPUT_DIR, open_dec
 
         if ALLOW_WHITELIST_WIDE_DECRYPTION:
             try:
-                fallback_key = derive_key_from_fingerprint(fingerprint)
+                fallback_key = derive_key_from_fingerprint(fingerprint, salt)
                 aesgcm = AESGCM(fallback_key)
                 plaintext = aesgcm.decrypt(nonce, ciphertext, None)
                 print("✅ Decrypted using the device-specific key (legacy vault).")
